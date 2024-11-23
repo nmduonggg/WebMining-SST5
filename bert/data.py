@@ -93,15 +93,17 @@ class SSTDataset(Dataset):
         text, label = self.data[index]
         
         # Tokenize with transformers
-        encoding = self.tokenizer(
-            text, 
-            padding='max_length', 
-            truncation=True, 
-            max_length=self.max_length, 
-            return_tensors='pt'
-        )
+        with torch.no_grad():
+            encoding = self.tokenizer(
+                text, 
+                padding='max_length', 
+                truncation=True, 
+                max_length=self.max_length, 
+                return_tensors='pt'
+            )
         
         return {
+            'encoding': encoding,
             'input_ids': encoding['input_ids'].flatten(),
             'attention_mask': encoding['attention_mask'].flatten(),
             'labels': torch.tensor(label, dtype=torch.long)

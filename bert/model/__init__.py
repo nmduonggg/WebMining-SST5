@@ -1,1 +1,1 @@
-from customedBert import CustomedBert
+from .customedBert import CustomedBert
