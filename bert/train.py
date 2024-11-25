@@ -9,13 +9,14 @@ from sklearn.metrics import accuracy_score, classification_report
 import numpy as np
 from tqdm import tqdm
 
+import loss
 from options import parsing
 from data import SSTDataset
 from eval import evaluate_model
 from model import CustomedBert
 
 # Training Function
-def train_model(model, train_dataloader, val_dataloader, optimizer, criterion, device, epochs, Config=None, outdir='./'):
+def train_model(model, train_dataloader, val_dataloader, optimizer, criterion, device, epochs, Config=None, outdir='./', scheduler=None):
     best_val_accuracy = 0
     
     for epoch in range(epochs):
@@ -59,6 +60,9 @@ def train_model(model, train_dataloader, val_dataloader, optimizer, criterion, d
                 val_true_labels.extend(labels.cpu().numpy())
         
         val_accuracy = accuracy_score(val_true_labels, val_predictions)
+        if scheduler is not None: 
+            scheduler.step(val_accuracy)
+        
         print(f"Epoch {epoch+1}/{epochs}")
         print(f"Training Loss: {np.mean(train_losses):.4f}")
         print(f"Validation Accuracy: {val_accuracy:.4f}")
@@ -66,6 +70,7 @@ def train_model(model, train_dataloader, val_dataloader, optimizer, criterion, d
         # Save best model
         os.makedirs(outdir, exist_ok=True)
         if val_accuracy > best_val_accuracy:
+            print("Update best acc: ", val_accuracy)
             best_val_accuracy = val_accuracy
             torch.save(model.state_dict(), os.path.join(outdir, Config.CHECKPOINT))
     
@@ -101,8 +106,13 @@ def main():
     test_loader = DataLoader(test_dataset, batch_size=Config.BATCH_SIZE, shuffle=False)
     
     # Optimizer and Loss
-    optimizer = optim.Adam(model.parameters(), lr=Config.LEARNING_RATE)
-    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam([
+        {'params': model.encoder.parameters(), 'lr': Config.LEARNING_RATE},
+        {'params': model.classifier.parameters()}
+    ], lr=Config.LEARNING_RATE)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'max', patience=5)
+    # criterion = nn.CrossEntropyLoss()
+    criterion = loss.FocalLoss(gamma=5)
     
     # Train model
     trained_model = train_model(
@@ -114,7 +124,8 @@ def main():
         Config.DEVICE, 
         Config.EPOCHS,
         Config,
-        args.outdir
+        args.outdir,
+        scheduler
     )
     
     # Evaluate model

@@ -1,3 +1,4 @@
+import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -6,8 +7,9 @@ from transformers import BertTokenizer, BertForSequenceClassification
 from sklearn.metrics import accuracy_score, classification_report
 import numpy as np
 
-# from config import Config
+from options import parsing
 from data import SSTDataset
+from model import CustomedBert
 
 def load_model_checkpoint(model, checkpoint_path, device):
     """
@@ -80,41 +82,42 @@ def evaluate_model(model, test_dataloader, device):
     
     return test_predictions, test_true_labels
 
-# def main():
-#     # Set up device
-#     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+def main():
+    # Set up device
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
-#     # Initialize tokenizer and model
-#     tokenizer = BertTokenizer.from_pretrained(Config.MODEL_NAME)
-#     model = BertForSequenceClassification.from_pretrained(
-#         Config.MODEL_NAME, 
-#         num_labels=Config.NUM_LABELS
-#     ).to(device)
+    args, Config = parsing()
+    # Initialize tokenizer and model
+    model = CustomedBert(
+        config=Config.MODEL_NAME, 
+        num_labels=Config.NUM_LABELS,
+        lora=args.lora, 
+        full_finetune=args.full_finetune
+    ).to(device)
     
-#     # Load model checkpoint
-#     checkpoint_path = Config.CHECKPOINT  # Update this path
-#     model = load_model_checkpoint(model, checkpoint_path, device)
+    # Load model checkpoint
+    checkpoint_path = os.path.join(args.outdir, Config.CHECKPOINT)  # Update this path
+    model = load_model_checkpoint(model, checkpoint_path, device)
     
-#     # Create test dataset and dataloader
-#     test_dataset = SSTDataset(
-#         split="test", 
-#         binary=False, 
-#         model_name="bert-base-uncased", 
-#         max_length=Config.MAX_LENGTH
-#     )
+    # Create test dataset and dataloader
+    test_dataset = SSTDataset(
+        split="test", binary=False,
+        model_name=Config.MODEL_NAME,
+        max_length=Config.MAX_LENGTH
+    )
     
-#     test_loader = DataLoader(
-#         test_dataset, 
-#         batch_size=Config.BATCH_SIZE, 
-#         shuffle=False
-#     )
+    test_loader = DataLoader(
+        test_dataset, 
+        batch_size=Config.BATCH_SIZE, 
+        shuffle=False
+    )
     
-#     # Evaluate model
-#     predictions, true_labels = evaluate_model(
-#         model, 
-#         test_loader, 
-#         device
-#     )
+    # Evaluate model
+    predictions, true_labels = evaluate_model(
+        model, 
+        test_loader, 
+        device
+    )
 
-# if __name__ == '__main__':
-#     main()
+if __name__ == '__main__':
+    main()

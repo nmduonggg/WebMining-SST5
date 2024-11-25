@@ -19,7 +19,7 @@ class ConfigBertLarge:
     MAX_LENGTH = 128
     BATCH_SIZE = 32
     LEARNING_RATE = 1e-5
-    EPOCHS = 10
+    EPOCHS = 50
     DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     LORA = False
     CHECKPOINT = f"best_{MODEL_NAME}{'_lora' if LORA else ''}.pth"
